@@ -42,14 +42,18 @@ fn compare_time_values(left: &Value, right: &Value) -> Result<Ordering, Validati
         (Value::String(a), Value::String(b)) => Ok(a.cmp(b)),
         (Value::Number(_), Value::String(_)) => Ok(Ordering::Less),
         (Value::String(_), Value::Number(_)) => Ok(Ordering::Greater),
-        _ => Err(ValidationError::new("time values must be numbers or strings")),
+        _ => Err(ValidationError::new(
+            "time values must be numbers or strings",
+        )),
     }
 }
 
 fn validate_time_values(times: &[Value], require_ordering: bool) -> Result<(), ValidationError> {
     for value in times {
         if !value.is_number() && !value.is_string() {
-            return Err(ValidationError::new("time values must be numbers or strings"));
+            return Err(ValidationError::new(
+                "time values must be numbers or strings",
+            ));
         }
     }
 
@@ -96,7 +100,9 @@ fn validate_signal_track_payload(
         .as_str()
         .ok_or_else(|| ValidationError::new("track label must be a non-empty string"))?;
     if label.is_empty() {
-        return Err(ValidationError::new("track label must be a non-empty string"));
+        return Err(ValidationError::new(
+            "track label must be a non-empty string",
+        ));
     }
 
     let times = times
@@ -118,7 +124,9 @@ fn validate_signal_track_payload(
 fn validate_scalars(scalars: &Map<String, Value>) -> Result<(), ValidationError> {
     for (k, v) in scalars {
         if k.is_empty() {
-            return Err(ValidationError::new("scalars keys must be non-empty strings"));
+            return Err(ValidationError::new(
+                "scalars keys must be non-empty strings",
+            ));
         }
         if !(v.is_number() || v.is_string() || v.is_boolean() || v.is_null()) {
             return Err(ValidationError::new(
@@ -129,14 +137,19 @@ fn validate_scalars(scalars: &Map<String, Value>) -> Result<(), ValidationError>
     Ok(())
 }
 
-pub fn validate_ssts_payload(payload: &Value, require_ordering: bool) -> Result<(), ValidationError> {
+pub fn validate_ssts_payload(
+    payload: &Value,
+    require_ordering: bool,
+) -> Result<(), ValidationError> {
     let obj = payload
         .as_object()
         .ok_or_else(|| ValidationError::new("SSTS payload must be an object"))?;
 
     if let Some(metadata) = obj.get("metadata") {
         if !metadata.is_object() {
-            return Err(ValidationError::new("metadata must be an object when provided"));
+            return Err(ValidationError::new(
+                "metadata must be an object when provided",
+            ));
         }
     }
 
@@ -253,5 +266,85 @@ pub fn ssts_from_payload(payload: &Value, require_ordering: bool) -> Result<SSTS
         metadata,
         scalars,
         extra,
+    })
+}
+
+pub fn ssts_from_payload_owned(
+    payload: Value,
+    require_ordering: bool,
+) -> Result<SSTS, ValidationError> {
+    validate_ssts_payload(&payload, require_ordering)?;
+
+    let mut obj = match payload {
+        Value::Object(obj) => obj,
+        _ => return Err(ValidationError::new("SSTS payload must be an object")),
+    };
+
+    let metadata = match obj.remove("metadata") {
+        Some(Value::Object(metadata)) => metadata,
+        Some(_) => {
+            return Err(ValidationError::new(
+                "metadata must be an object when provided",
+            ));
+        }
+        None => Map::new(),
+    };
+    let scalars = match obj.remove("scalars") {
+        Some(Value::Object(scalars)) => scalars,
+        Some(_) => {
+            return Err(ValidationError::new(
+                "scalars must be an object when provided",
+            ));
+        }
+        None => Map::new(),
+    };
+
+    let mut signals = match obj.remove("signals") {
+        Some(Value::Object(signals)) => signals,
+        Some(_) => return Err(ValidationError::new("signals must be an object")),
+        None => return Err(ValidationError::new("signals must be an object")),
+    };
+
+    let mut tracks = Vec::with_capacity(signals.len());
+    for idx in 1..=signals.len() {
+        let key = format!("track_{idx}");
+        let track_value = signals
+            .remove(&key)
+            .ok_or_else(|| ValidationError::new(format!("missing contiguous track: {key}")))?;
+        let mut track_obj = match track_value {
+            Value::Object(track_obj) => track_obj,
+            _ => return Err(ValidationError::new("track payload must be an object")),
+        };
+
+        let label = match track_obj.remove("label") {
+            Some(Value::String(label)) if !label.is_empty() => label,
+            _ => {
+                return Err(ValidationError::new(
+                    "track label must be a non-empty string",
+                ));
+            }
+        };
+        let times = match track_obj.remove("times") {
+            Some(Value::Array(times)) => times,
+            _ => return Err(ValidationError::new("track times must be an array")),
+        };
+        let signal = match track_obj.remove("signal") {
+            Some(Value::Array(signal)) => signal,
+            _ => return Err(ValidationError::new("track signal must be an array")),
+        };
+
+        tracks.push(SignalTrack {
+            label,
+            times,
+            signal,
+            extra: track_obj,
+        });
+    }
+
+    Ok(SSTS {
+        tracks,
+        metadata,
+        scalars,
+        extra: obj,
     })
 }

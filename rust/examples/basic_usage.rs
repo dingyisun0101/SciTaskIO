@@ -19,7 +19,10 @@ fn main() -> std::io::Result<()> {
     // Build top-level metadata/scalars.
     let mut metadata = Map::new();
     metadata.insert("series_id".to_string(), Value::from("demo_series"));
-    metadata.insert("source".to_string(), Value::from("rust/examples/basic_usage.rs"));
+    metadata.insert(
+        "source".to_string(),
+        Value::from("rust/examples/basic_usage.rs"),
+    );
 
     let mut scalars = Map::new();
     scalars.insert("seed".to_string(), Value::from(123));

@@ -7,12 +7,7 @@ mod tests {
     use serde_json::{Map, Value};
 
     use crate::ssts::{
-        SSTSBuilder,
-        SSTSSeries,
-        decode_vec,
-        load_ssts_json,
-        save_ssts_json,
-        sync_checkpoint_dirs,
+        SSTSBuilder, SSTSSeries, decode_vec, load_ssts_json, save_ssts_json, sync_checkpoint_dirs,
     };
 
     fn fixture(path: &str) -> PathBuf {
@@ -36,7 +31,10 @@ mod tests {
 
     fn minimal_ssts_with_epoch(epoch: usize) -> Value {
         let mut metadata = Map::new();
-        metadata.insert("series_id".to_string(), Value::String(format!("run_{epoch}")));
+        metadata.insert(
+            "series_id".to_string(),
+            Value::String(format!("run_{epoch}")),
+        );
 
         serde_json::json!({
             "metadata": metadata,
@@ -90,7 +88,11 @@ mod tests {
             .push_row("frequencies", 0usize, vec![0.5f64, 0.5f64])
             .expect("row should serialize");
         builder
-            .push_row("space", 0usize, vec![vec![1usize, 0usize], vec![2usize, 1usize]])
+            .push_row(
+                "space",
+                0usize,
+                vec![vec![1usize, 0usize], vec![2usize, 1usize]],
+            )
             .expect("row should serialize");
         builder
             .push_row("frequencies", 10usize, vec![0.6f64, 0.4f64])
@@ -104,7 +106,9 @@ mod tests {
         let (last_time, _) = frequencies.latest_row().expect("latest row should exist");
         assert_eq!(last_time, &Value::from(10usize));
 
-        let space = ssts.track_by_label("space").expect("space track should exist");
+        let space = ssts
+            .track_by_label("space")
+            .expect("space track should exist");
         assert_eq!(space.len(), 1);
 
         let decoded_times: Vec<usize> =
@@ -125,26 +129,21 @@ mod tests {
 
         for epoch in [1usize, 2usize] {
             let payload = minimal_ssts_with_epoch(epoch);
-            let ssts = crate::ssts::ssts_from_payload(&payload, false)
-                .expect("payload should parse");
+            let ssts =
+                crate::ssts::ssts_from_payload(&payload, false).expect("payload should parse");
             save_ssts_json(&ssts, &dir_a.join(format!("{epoch}.json")))
                 .expect("checkpoint should save");
         }
         for epoch in [1usize, 3usize] {
             let payload = minimal_ssts_with_epoch(epoch);
-            let ssts = crate::ssts::ssts_from_payload(&payload, false)
-                .expect("payload should parse");
+            let ssts =
+                crate::ssts::ssts_from_payload(&payload, false).expect("payload should parse");
             save_ssts_json(&ssts, &dir_b.join(format!("{epoch}.json")))
                 .expect("checkpoint should save");
         }
 
-        let report = sync_checkpoint_dirs(
-            &[dir_a.clone(), dir_b.clone()],
-            false,
-            true,
-            true,
-        )
-        .expect("sync should succeed");
+        let report = sync_checkpoint_dirs(&[dir_a.clone(), dir_b.clone()], false, true, true)
+            .expect("sync should succeed");
 
         assert_eq!(report.keep_epoch, Some(1usize));
         assert_eq!(report.removed_newer_files, 2usize);

@@ -4,8 +4,9 @@ use std::fmt::{Display, Formatter};
 use std::io::Result;
 use std::path::Path;
 
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::ser::SerializeMap;
+use serde::{Serialize, Serializer};
 use serde_json::{Map, Value};
 
 #[derive(Clone, Debug)]
@@ -16,12 +17,41 @@ pub struct SignalTrack {
     pub extra: Map<String, Value>,
 }
 
+impl Serialize for SignalTrack {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(3 + self.extra.len()))?;
+        map.serialize_entry("label", &self.label)?;
+        map.serialize_entry("times", &self.times)?;
+        map.serialize_entry("signal", &self.signal)?;
+        for (k, v) in &self.extra {
+            map.serialize_entry(k, v)?;
+        }
+        map.end()
+    }
+}
+
 impl SignalTrack {
     pub fn new(label: impl Into<String>) -> Self {
         Self {
             label: label.into(),
             times: Vec::new(),
             signal: Vec::new(),
+            extra: Map::new(),
+        }
+    }
+
+    pub fn with_capacity(
+        label: impl Into<String>,
+        times_capacity: usize,
+        signal_capacity: usize,
+    ) -> Self {
+        Self {
+            label: label.into(),
+            times: Vec::with_capacity(times_capacity),
+            signal: Vec::with_capacity(signal_capacity),
             extra: Map::new(),
         }
     }
@@ -72,6 +102,37 @@ pub struct SSTS {
     pub extra: Map<String, Value>,
 }
 
+struct SignalsByIndex<'a>(&'a [SignalTrack]);
+
+impl Serialize for SignalsByIndex<'_> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (idx, track) in self.0.iter().enumerate() {
+            map.serialize_entry(&format!("track_{}", idx + 1), track)?;
+        }
+        map.end()
+    }
+}
+
+impl Serialize for SSTS {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(3 + self.extra.len()))?;
+        map.serialize_entry("metadata", &self.metadata)?;
+        map.serialize_entry("scalars", &self.scalars)?;
+        map.serialize_entry("signals", &SignalsByIndex(&self.tracks))?;
+        for (k, v) in &self.extra {
+            map.serialize_entry(k, v)?;
+        }
+        map.end()
+    }
+}
+
 impl SSTS {
     pub fn empty() -> Self {
         Self {
@@ -95,21 +156,7 @@ impl SSTS {
     }
 
     pub fn to_payload(&self) -> Value {
-        let mut signals = Map::new();
-        for (idx, track) in self.tracks.iter().enumerate() {
-            signals.insert(format!("track_{}", idx + 1), track.to_payload());
-        }
-
-        let mut payload = Map::new();
-        payload.insert("metadata".to_string(), Value::Object(self.metadata.clone()));
-        payload.insert("scalars".to_string(), Value::Object(self.scalars.clone()));
-        payload.insert("signals".to_string(), Value::Object(signals));
-
-        for (k, v) in &self.extra {
-            payload.insert(k.clone(), v.clone());
-        }
-
-        Value::Object(payload)
+        serde_json::to_value(self).expect("SSTS serialization to Value should not fail")
     }
 
     pub fn from_json(path: &Path, require_ordering: bool) -> Result<Self> {
@@ -175,6 +222,23 @@ impl SSTSBuilder {
         }
     }
 
+    pub fn with_track_capacity(track_capacity: usize) -> Self {
+        Self {
+            ssts: SSTS {
+                tracks: Vec::with_capacity(track_capacity),
+                metadata: Map::new(),
+                scalars: Map::new(),
+                extra: Map::new(),
+            },
+            track_by_label: HashMap::with_capacity(track_capacity),
+        }
+    }
+
+    pub fn reserve_tracks(&mut self, additional: usize) {
+        self.ssts.tracks.reserve(additional);
+        self.track_by_label.reserve(additional);
+    }
+
     pub fn metadata_mut(&mut self) -> &mut Map<String, Value> {
         &mut self.ssts.metadata
     }
@@ -187,17 +251,38 @@ impl SSTSBuilder {
         &mut self.ssts.extra
     }
 
+    fn find_track_index(&self, label: &str) -> Option<usize> {
+        self.track_by_label.get(label).copied()
+    }
+
+    fn ensure_track_index(&mut self, label: String) -> usize {
+        if let Some(idx) = self.track_by_label.get(&label).copied() {
+            return idx;
+        }
+        let idx = self.ssts.tracks.len();
+        self.ssts.tracks.push(SignalTrack::new(label.clone()));
+        self.track_by_label.insert(label, idx);
+        idx
+    }
+
+    pub fn reserve_rows_for_label(&mut self, label: &str, additional: usize) {
+        if let Some(idx) = self.find_track_index(label) {
+            self.ssts.tracks[idx].times.reserve(additional);
+            self.ssts.tracks[idx].signal.reserve(additional);
+        }
+    }
+
+    pub fn push_row_value_ref(&mut self, label: &str, time: Value, signal: Value) {
+        let idx = match self.find_track_index(label) {
+            Some(idx) => idx,
+            None => self.ensure_track_index(label.to_string()),
+        };
+        self.ssts.tracks[idx].push_row(time, signal);
+    }
+
     pub fn push_row_value(&mut self, label: impl Into<String>, time: Value, signal: Value) {
         let label = label.into();
-        let idx = match self.track_by_label.get(&label) {
-            Some(idx) => *idx,
-            None => {
-                let idx = self.ssts.tracks.len();
-                self.ssts.tracks.push(SignalTrack::new(label.clone()));
-                self.track_by_label.insert(label, idx);
-                idx
-            }
-        };
+        let idx = self.ensure_track_index(label);
         self.ssts.tracks[idx].push_row(time, signal);
     }
 
@@ -211,10 +296,11 @@ impl SSTSBuilder {
         T: Serialize,
         U: Serialize,
     {
-        let time_value = serde_json::to_value(time).map_err(|source| SSTSBuilderError::Serialize {
-            field: "time",
-            source,
-        })?;
+        let time_value =
+            serde_json::to_value(time).map_err(|source| SSTSBuilderError::Serialize {
+                field: "time",
+                source,
+            })?;
         let signal_value =
             serde_json::to_value(signal).map_err(|source| SSTSBuilderError::Serialize {
                 field: "signal",
@@ -237,7 +323,11 @@ pub struct DecodeError {
 
 impl Display for DecodeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "failed to decode value at index {}: {}", self.index, self.source)
+        write!(
+            f,
+            "failed to decode value at index {}: {}",
+            self.index, self.source
+        )
     }
 }
 
@@ -255,10 +345,7 @@ where
         .iter()
         .enumerate()
         .map(|(idx, value)| {
-            serde_json::from_value::<T>(value.clone()).map_err(|source| DecodeError {
-                index: idx,
-                source,
-            })
+            T::deserialize(value).map_err(|source| DecodeError { index: idx, source })
         })
         .collect()
 }

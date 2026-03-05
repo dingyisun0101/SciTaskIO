@@ -45,7 +45,10 @@ impl SSTSSeries {
         let entries = read_dir(&self.root_dir).map_err(|e| {
             Error::new(
                 e.kind(),
-                format!("ssts_series: failed to read {}: {e}", self.root_dir.display()),
+                format!(
+                    "ssts_series: failed to read {}: {e}",
+                    self.root_dir.display()
+                ),
             )
         })?;
 

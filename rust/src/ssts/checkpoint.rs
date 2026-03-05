@@ -1,5 +1,5 @@
-use std::fs;
 use std::collections::BTreeSet;
+use std::fs;
 use std::io::{self, Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
@@ -161,7 +161,10 @@ pub fn prune_newer_than(checkpoint_dir: &Path, keep_epoch: usize) -> io::Result<
     Ok(removed)
 }
 
-fn scan_checkpoint_dir(checkpoint_dir: &Path, require_ordering: bool) -> io::Result<CheckpointScan> {
+fn scan_checkpoint_dir(
+    checkpoint_dir: &Path,
+    require_ordering: bool,
+) -> io::Result<CheckpointScan> {
     let mut checkpoint_files = Vec::new();
     let mut epochs = BTreeSet::new();
     let mut invalid_files = Vec::new();
