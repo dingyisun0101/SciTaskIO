@@ -10,11 +10,13 @@ pub use checkpoint::{
     load_latest_checkpoint,
     preflight_checkpoint_dir,
     prune_newer_than,
+    sync_checkpoint_dirs,
     CheckpointPreflightReport,
+    CheckpointSyncReport,
 };
 pub use io_json::{load_ssts_json, save_ssts_json};
 pub use series::{SeriesEntry, SSTSSeries};
-pub use ssts::{SSTS, SignalTrack};
+pub use ssts::{DecodeError, SSTSBuilder, SSTSBuilderError, SSTS, SignalTrack, decode_vec};
 pub use validation::{ValidationError, ssts_from_payload, validate_ssts_payload};
 
 #[cfg(test)]
