@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "series_id": "run_B",
+    "notes": "pilot"
+  },
+  "scalars": {
+    "seed": 42,
+    "dt": 0.01,
+    "stable": true,
+    "tag": "exp-01",
+    "comment": null
+  },
+  "signals": {
+    "track_1": {
+      "label": "frequencies",
+      "times": ["t0", "t1", "t2"],
+      "signal": [
+        [0.2, 0.8],
+        [0.3, 0.7],
+        [0.4, 0.6]
+      ]
+    }
+  }
+}

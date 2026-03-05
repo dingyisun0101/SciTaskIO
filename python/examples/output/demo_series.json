@@ -1,0 +1,63 @@
+{
+  "metadata": {
+    "series_id": "demo_series",
+    "source": "examples/basic_usage.py"
+  },
+  "scalars": {
+    "seed": 123,
+    "dt": 0.01
+  },
+  "signals": {
+    "track_1": {
+      "label": "frequencies",
+      "times": [
+        0,
+        10,
+        20
+      ],
+      "signal": [
+        [
+          0.5,
+          0.5
+        ],
+        [
+          0.6,
+          0.4
+        ],
+        [
+          0.55,
+          0.45
+        ]
+      ]
+    },
+    "track_2": {
+      "label": "space",
+      "times": [
+        0,
+        10
+      ],
+      "signal": [
+        [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            0
+          ]
+        ]
+      ]
+    }
+  }
+}

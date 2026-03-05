@@ -1,0 +1,12 @@
+{
+  "signals": {
+    "track_one": {
+      "label": "frequencies",
+      "times": [0, 1],
+      "signal": [
+        [0.5, 0.5],
+        [0.6, 0.4]
+      ]
+    }
+  }
+}

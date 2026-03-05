@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sci-task-io.local/schema/ssts.json.schema",
+  "title": "SSTS Series JSON",
+  "description": "Schema for <series_id>.json. Runtime validation is still required for cross-field rules such as contiguous track numbering and times/signal length equality.",
+  "type": "object",
+  "required": ["signals"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Optional non-time-series metadata.",
+      "additionalProperties": true
+    },
+    "scalars": {
+      "type": "object",
+      "description": "Optional scalar key-value map.",
+      "additionalProperties": {
+        "type": ["number", "string", "boolean", "null"]
+      }
+    },
+    "signals": {
+      "type": "object",
+      "description": "Ordered track container keyed by track_<n>.",
+      "patternProperties": {
+        "^track_[1-9][0-9]*$": {
+          "$ref": "#/$defs/track"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "timeValue": {
+      "description": "Time index value.",
+      "type": ["number", "string"]
+    },
+    "track": {
+      "type": "object",
+      "required": ["label", "times", "signal"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "times": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timeValue"
+          }
+        },
+        "signal": {
+          "type": "array",
+          "description": "Track payload rows. Row type is intentionally generic.",
+          "items": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-runtime-validations": [
+    "Track keys must be contiguous from track_1 to track_N.",
+    "For every track, len(times) must equal len(signal).",
+    "When ordering is required, times must be monotonic non-decreasing.",
+    "When ordering is required, equal-time rows should use deterministic tie-breakers."
+  ]
+}
