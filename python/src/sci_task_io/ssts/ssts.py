@@ -43,6 +43,46 @@ class SignalTrack:
         payload.update(self.extra)
         return payload
 
+    @classmethod
+    def from_npy(cls, path, require_ordering=False):
+        """
+        OO alias for loading one processed signal-label `.npy` payload.
+
+        Parameters:
+        - `path`: filesystem path to `<signal_label>.npy`.
+        - `require_ordering`: if True, enforce monotonic `times`.
+
+        Returns:
+        - Loaded `SignalTrack` object.
+        """
+        from .io_npy import load_signal_label_npy
+
+        return load_signal_label_npy(path, require_ordering=require_ordering)
+
+    @classmethod
+    def load_npy(cls, path, require_ordering=False):
+        """
+        Alias of `from_npy` for method-style usage.
+        """
+        return cls.from_npy(path, require_ordering=require_ordering)
+
+    def save_npy(self, path):
+        """
+        OO alias for saving this processed signal-label payload to `.npy`.
+
+        Parameters:
+        - `path`: destination filesystem path.
+        """
+        from .io_npy import save_signal_label_npy
+
+        save_signal_label_npy(self, path)
+
+    def to_npy(self, path):
+        """
+        Alias of `save_npy` for method-style usage.
+        """
+        self.save_npy(path)
+
 
 class SSTS:
     """
@@ -88,3 +128,43 @@ class SSTS:
         }
         payload.update(self.extra)
         return payload
+
+    @classmethod
+    def from_json(cls, path, require_ordering=False):
+        """
+        OO alias for loading one SSTS JSON file.
+
+        Parameters:
+        - `path`: filesystem path to `<series_id>.json`.
+        - `require_ordering`: if True, enforce monotonic `times`.
+
+        Returns:
+        - Loaded `SSTS` object.
+        """
+        from .io_json import load_ssts_json
+
+        return load_ssts_json(path, require_ordering=require_ordering)
+
+    @classmethod
+    def load_json(cls, path, require_ordering=False):
+        """
+        Alias of `from_json` for method-style usage.
+        """
+        return cls.from_json(path, require_ordering=require_ordering)
+
+    def save_json(self, path):
+        """
+        OO alias for saving this SSTS object to JSON.
+
+        Parameters:
+        - `path`: destination filesystem path.
+        """
+        from .io_json import save_ssts_json
+
+        save_ssts_json(self, path)
+
+    def to_json(self, path):
+        """
+        Alias of `save_json` for method-style usage.
+        """
+        self.save_json(path)

@@ -8,10 +8,6 @@ from sci_task_io import (
     SSTSSeries,
     SignalTrack,
     ValidationError,
-    load_signal_label_npy,
-    load_ssts_json,
-    save_signal_label_npy,
-    save_ssts_json,
 )
 
 
@@ -19,11 +15,11 @@ def main():
     root = Path(__file__).resolve().parents[2]
     fixture = root / "schema" / "fixtures" / "contract" / "valid" / "multi_track.json"
 
-    # 1) Load an existing SSTS JSON file.
-    ssts = load_ssts_json(fixture)
+    # 1) Load an existing SSTS JSON file via OO alias.
+    ssts = SSTS.from_json(fixture)
     print("loaded tracks:", [track.label for track in ssts.tracks])
 
-    # 2) Build and save a new SSTS JSON file.
+    # 2) Build and save a new SSTS JSON file via OO alias.
     demo_ssts = SSTS(
         tracks=[
             SignalTrack(
@@ -43,7 +39,7 @@ def main():
 
     out_root = root / "python" / "examples" / "output"
     out_json = out_root / "demo_series.json"
-    save_ssts_json(demo_ssts, out_json)
+    demo_ssts.save_json(out_json)
     print("wrote:", out_json)
 
     # 3) Save one processed signal-label NPY file and load it back.
@@ -55,15 +51,15 @@ def main():
     )
 
     out_npy = out_root / "frequencies.npy"
-    save_signal_label_npy(combined_track, out_npy)
-    loaded_track = load_signal_label_npy(out_npy)
+    combined_track.save_npy(out_npy)
+    loaded_track = SignalTrack.from_npy(out_npy)
     print("loaded npy label:", loaded_track.label)
     print("loaded npy length:", len(loaded_track.times))
 
     # 4) Process one directory of SSTS JSON files into per-label NPY outputs.
     series_input = root / "schema" / "fixtures" / "contract" / "valid"
     series_out = out_root / "processed_from_series"
-    ssts_series = SSTSSeries(series_input)
+    ssts_series = SSTSSeries.from_dir(series_input)
     written = ssts_series.process(series_out)
     print("series wrote:", [path.name for path in written])
 
@@ -75,7 +71,7 @@ def main():
 
     # 6) Example validation error handling.
     try:
-        load_ssts_json(root / "schema" / "fixtures" / "contract" / "invalid" / "bad_track_key.json")
+        SSTS.load_json(root / "schema" / "fixtures" / "contract" / "invalid" / "bad_track_key.json")
     except ValidationError as exc:
         print("caught expected validation error:", exc)
 

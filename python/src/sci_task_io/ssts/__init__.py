@@ -1,5 +1,12 @@
 """SSTS core IO and series processing APIs."""
 
+from .checkpoint_utils import (
+    latest_checkpoint_path,
+    list_checkpoint_files,
+    load_latest_checkpoint,
+    preflight_checkpoint_dir,
+    prune_newer_than,
+)
 from .io_json import load_ssts_json, save_ssts_json
 from .io_npy import load_signal_label_npy, save_signal_label_npy
 from .ssts import SSTS, SignalTrack
@@ -17,4 +24,9 @@ __all__ = [
     "save_ssts_json",
     "load_signal_label_npy",
     "save_signal_label_npy",
+    "list_checkpoint_files",
+    "latest_checkpoint_path",
+    "preflight_checkpoint_dir",
+    "load_latest_checkpoint",
+    "prune_newer_than",
 ]

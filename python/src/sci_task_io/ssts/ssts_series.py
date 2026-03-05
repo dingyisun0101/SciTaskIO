@@ -33,9 +33,34 @@ class SSTSSeries:
         self.require_ordering = require_ordering
         self.entries = []
 
+    @classmethod
+    def from_dir(cls, root_dir, require_ordering=False, auto_load=True):
+        """
+        Construct series object from a directory.
+
+        Parameters:
+        - `root_dir`: directory containing `<series_id>.json` files.
+        - `require_ordering`: if True, enforce monotonic `times` on load.
+        - `auto_load`: if True, load entries immediately.
+
+        Returns:
+        - `SSTSSeries` instance.
+        """
+        obj = cls(root_dir, require_ordering=require_ordering)
+        if auto_load:
+            obj.load()
+        return obj
+
+    @classmethod
+    def load_dir(cls, root_dir, require_ordering=False):
+        """
+        Alias that always returns a loaded series object.
+        """
+        return cls.from_dir(root_dir, require_ordering=require_ordering, auto_load=True)
+
     def _iter_series_paths(self):
         """
-        Yield candidate SSTS JSON paths from the cluster root directory.
+        Yield candidate SSTS JSON paths from the series root directory.
 
         Behavior:
         - Non-recursive scan of `*.json`.
@@ -50,7 +75,7 @@ class SSTSSeries:
 
     def _resolve_serial_id(self, ssts, path):
         """
-        Resolve serial id used for cluster sorting.
+        Resolve serial id used for series sorting.
 
         Behavior:
         - Prefer `metadata.serial_id`.
@@ -66,7 +91,7 @@ class SSTSSeries:
 
     def load(self):
         """
-        Load all SSTS JSON files from the cluster directory.
+        Load all SSTS JSON files from the series directory.
 
         Returns:
         - `self`, with `entries` populated and sorted by serial id.
@@ -85,9 +110,15 @@ class SSTSSeries:
         self.entries = entries
         return self
 
+    def load_all(self):
+        """
+        Alias of `load` for method-style usage.
+        """
+        return self.load()
+
     def serial_ids(self):
         """
-        Return serial ids in current cluster order.
+        Return serial ids in current series order.
 
         Behavior:
         - If not loaded yet, this method loads first.
@@ -111,7 +142,7 @@ class SSTSSeries:
 
     def process(self, output_dir):
         """
-        Build processed `<signal_label>.npy` files from all cluster series.
+        Build processed `<signal_label>.npy` files from all series entries.
 
         Parameters:
         - `output_dir`: Directory where processed `.npy` outputs are written.
